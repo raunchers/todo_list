@@ -1,9 +1,13 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const date = require(__dirname + "/date.js");
 
 const app = express();
-let items = [];
-let workItems = [];
+
+// Arrays can be declared as const and have items pushed and popped from them
+// cannot assign the array to an entirely new array, however
+const items = [];
+const workItems = [];
 
 app.use(bodyParser.urlencoded({
   extended: true
@@ -13,15 +17,8 @@ app.use(express.static("public")); // Tell express to load this folder and it's 
 app.set('view engine', 'ejs');
 
 app.get("/", function(req, res) {
-  let today = new Date();
 
-  let options = {
-    weekday: "long",
-    day: "numeric",
-    month: "long"
-  };
-
-  let day = today.toLocaleDateString("en-US", options);
+  const day = date.getDate(); // Put () to make the module run the function inside of it
 
   res.render("list", {
     listTitle: day,
@@ -43,11 +40,10 @@ app.get("/about", function(req, res){
 
 app.post("/", function(req, res) {
 
-  let item = req.body.newItem;
+  const item = req.body.newItem;
 
   if(req.body.list === "Work"){
     workItems.push(item);
-    console.log("Work push");
     res.redirect("/work");
   }else{
     items.push(item);

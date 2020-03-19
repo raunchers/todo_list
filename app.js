@@ -1,30 +1,67 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
 const date = require(__dirname + "/date.js");
 
 const app = express();
 
-// Arrays can be declared as const and have items pushed and popped from them
-// cannot assign the array to an entirely new array, however
-const items = [];
-const workItems = [];
+app.set('view engine', 'ejs');
 
 app.use(bodyParser.urlencoded({
   extended: true
 }));
 app.use(express.static("public")); // Tell express to load this folder and it's contents
 
-app.set('view engine', 'ejs');
+mongoose.connect("mongodb://localhost:27017/todolistDB", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}); // Connecting to DB, if it doesn't exist, it is created
+
+const itemSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, "Requires a name to be saved."]
+  }
+});
+
+// Model
+const Item = mongoose.model("Item", itemSchema);
+
+const dayOne = new Item({
+  name: "Day 1"
+});
+
+const dayTwo = new Item({
+  name: "Day 2"
+});
+
+const dayThree = new Item({
+  name: "Day 3"
+});
+
+const defaultItems = [dayOne, dayTwo, dayThree];
 
 app.get("/", function(req, res) {
 
   const day = date.getDate(); // Put () to make the module run the function inside of it
 
-  res.render("list", {
-    listTitle: day,
-    items: items
+  Item.find({}, function(err, foundItems) {
+    if (foundItems.length === 0) {
+      Item.insertMany(defaultItems, function(err) {
+        if (err) {
+          console.log(err);
+        } else {
+          console.log("Inserted successful");
+        }
+      });
+      res.redirect("/");
+    } else {
+      res.render("list", {
+        listTitle: day,
+        items: foundItems
+      });
+    }
   });
-
 });
 
 app.get("/work", function(req, res) {
@@ -34,7 +71,7 @@ app.get("/work", function(req, res) {
   });
 });
 
-app.get("/about", function(req, res){
+app.get("/about", function(req, res) {
   res.render("about");
 });
 
@@ -42,10 +79,10 @@ app.post("/", function(req, res) {
 
   const item = req.body.newItem;
 
-  if(req.body.list === "Work"){
+  if (req.body.list === "Work") {
     workItems.push(item);
     res.redirect("/work");
-  }else{
+  } else {
     items.push(item);
     res.redirect("/");
   }

@@ -1,6 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
+const _ = require('lodash');
 const date = require(__dirname + "/date.js");
 
 const app = express();
@@ -25,26 +26,36 @@ const itemSchema = new mongoose.Schema({
   }
 });
 
+const day = date.getDate(); // Put () to make the module run the function inside of it
+
 // Model
 const Item = mongoose.model("Item", itemSchema);
 
-const dayOne = new Item({
-  name: "Day 1"
+const itemOne = new Item({
+  name: "Welcome to your todolist!"
 });
 
-const dayTwo = new Item({
-  name: "Day 2"
+const itemTwo = new Item({
+  name: "Hit the + button to add a new item."
 });
 
-const dayThree = new Item({
-  name: "Day 3"
+const itemThree = new Item({
+  name: "<---- Hit this button to delete an item."
 });
 
-const defaultItems = [dayOne, dayTwo, dayThree];
+const defaultItems = [itemOne, itemTwo, itemThree];
+
+const listSchema = {
+  name: {
+    type: String,
+    required: [true, "Requires a name to be saved."]
+  },
+  items: [itemSchema]
+};
+
+const List = mongoose.model("List", listSchema);
 
 app.get("/", function(req, res) {
-
-  const day = date.getDate(); // Put () to make the module run the function inside of it
 
   Item.find({}, function(err, foundItems) {
     if (foundItems.length === 0) {
@@ -52,23 +63,42 @@ app.get("/", function(req, res) {
         if (err) {
           console.log(err);
         } else {
-          console.log("Inserted successful");
+          console.log("Inserted successfully");
         }
       });
       res.redirect("/");
     } else {
       res.render("list", {
-        listTitle: day,
+        listTitle: "Today",
         items: foundItems
       });
     }
   });
 });
 
-app.get("/work", function(req, res) {
-  res.render("list", {
-    listTitle: "Work List",
-    items: workItems
+app.get("/:customListName", function(req, res) {
+
+  const customListName = req.params.customListName;
+
+  List.findOne({name: customListName}, function(err, foundList) {
+    if (!err) {
+
+      if (!foundList) {
+
+        const list = new List({
+          name: customListName,
+          items: defaultItems
+        });
+
+        list.save();
+
+        res.redirect("/" + customListName);
+
+      } else {
+        res.render("list", {listTitle: foundList.name, items: foundList.items});
+      }
+    }
+
   });
 });
 
@@ -79,21 +109,31 @@ app.get("/about", function(req, res) {
 app.post("/", function(req, res) {
 
   const itemName = req.body.newItem;
+  const listName = req.body.list;
 
   const item = new Item({
     name: itemName
   });
 
-  item.save();
-  res.redirect("/");
+  if(listName === "Today" ){
+    item.save();
+    res.redirect("/");
+  }else{
+    List.findOne({name: listName}, function(err, foundList){
+      foundList.items.push(item);
+      foundList.save();
+      res.redirect("/" + listName);
+    });
+  }
+
 });
 
-app.post("/delete", function(req, res){
+app.post("/delete", function(req, res) {
   const checkedItemID = req.body.checkbox;
-  Item.findByIdAndRemove(checkedItemID, function(err){
-    if(err){
+  Item.findByIdAndRemove(checkedItemID, function(err) {
+    if (err) {
       console.log(err);
-    }else{
+    } else {
       console.log("Item " + checkedItemID + " has been successfully removed.");
       res.redirect("/");
     }
